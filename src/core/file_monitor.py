@@ -1,56 +1,32 @@
 import time
 import logging
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from hdfs3 import HDFileSystem
-from core.local_catalogue import LocalCatalogue
 import os
 import yaml
 import errno
 import subprocess
 import argparse
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from hdfs3 import HDFileSystem
+from core.local_catalogue import LocalCatalogue
+from utils.path_util import customize_path, remove_prefix
+from utils.hdfs_util import find_remote_paths, create_locally_synced_hdfs_dir
+from utils.file_util import crc32c_file_checksum
 
 
-def customize_path(folder_path, filename):
-    return os.path.join(folder_path, filename)
-
-
-def remove_prefix(prefix, filepath):
-    prefix = customize_path(prefix, '')
-    if filepath.startswith(prefix):
-        return filepath[len(prefix):]
-    return filepath
-
-
-def find_remote_paths(starting_path):
-    """
-    :param starting_path: the remote path of the file / dir that was deleted locally
-    :return: list of remote paths of dirs + files in the file structure from starting_path (without /starting_path/)
-    """
-    global hdfs
-    print("find_remote_paths")
-    list_of_paths = [starting_path]
-    for sp, subdir, files in hdfs.walk(starting_path):
-        for name in subdir:
-            list_of_paths.append(customize_path(sp, name))
-        for name in files:
-            list_of_paths.append(customize_path(sp, name))
-    return list_of_paths
-
-
-def issue_mr_job(file_path):
+def issue_mr_job(filepath):
     """
     Called when a .yaml file is created.
     Reads the paths of mapper, reducer, input dir, output dir + checks that they exist locally + remotely.
     Issues the MR job.
-    :param file_path: the path of the created yaml file, all specified paths are local
+    :param filepath: the path of the created yaml file, all specified paths are local
     :return:
     """
     print("issue_mr_job")
 
     global lc, hdfs, hadoopPath, localFolder, remoteFolder
 
-    with open(file_path, 'r') as f:
+    with open(filepath, 'r') as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
         mapper_path = data.get('mapper')
         reducer_path = data.get('reducer')
@@ -76,16 +52,13 @@ def issue_mr_job(file_path):
              " -output " + hdfs_output_path
 
     try:
-        subprocess.run(cmd_mr, shell=True, check=True)
-        # copy the output dir locally
-        os.mkdir(local_output_path)
-        for rp in hdfs.ls(hdfs_output_path):
-            f = remove_prefix(hdfs_output_path, rp)
-            lp = customize_path(local_output_path, f)
-            hdfs.get(rp, lp)  # triggers on_created()
+        create_locally_synced_hdfs_dir(cmd_mr, hdfs, lc, local_output_path, hdfs_output_path, hadoopPath)
     except subprocess.CalledProcessError as e:
         print("Map-Reduce job failed!")
         print(e.output)
+
+def on_created_dir(locpath, rempath):
+    print("on_created_dir")
 
 
 class Event(FileSystemEventHandler):
@@ -106,18 +79,34 @@ class Event(FileSystemEventHandler):
         lc.set_modified_local(event.src_path)  # todo: implement in_sync logic
 
     def on_created(self, event):
-        """ Creates dir / file on HDFS & adds mapping with mapping between local + remote path in the local db
+        """ Creates dir / file on HDFS & adds mapping with mapping between local + hdfs path in the local db
         If created file is .yaml issues a MR job"""
-        global hdfs, lc, localFolder, remoteFolder
+        global hdfs, lc, localFolder, remoteFolder, hadoopPath, files_to_sync
         print("on_created")
         filename = remove_prefix(localFolder, event.src_path)
         remote_file_path = customize_path(remoteFolder, filename)
 
-        if event.is_directory:
+        if event.is_directory and hdfs.exists(remote_file_path):
             hdfs.mkdir(remote_file_path)
+            lc.insert_tuple_hdfs(event.src_path, remote_file_path, None)       # todo: implement dir checksum
+        elif event.is_directory and not hdfs.exists(remote_file_path):
         else:
-            hdfs.put(event.src_path, remote_file_path)
-        lc.insert_tuple(event.src_path, remote_file_path)
+            loc_chk = crc32c_file_checksum(event.src_path)
+            lc.insert_tuple_local(event.src_path, remote_file_path, loc_chk)  # todo: a
+            if hdfs.exists(remote_file_path):
+                print("File already exists on hdfs, get checksum from the db")
+                hdfs_chk = lc.get_hdfs_chk(remote_file_path)
+            else:
+                hdfs.put(event.src_path, remote_file_path)
+                cmd_hdfs_chk = customize_path(hadoopPath, 'bin/hdfs') + \
+                      " dfs -Ddfs.checksum.combine.mode=COMPOSITE_CRC -checksum " + remote_file_path
+                hdfs_chk = subprocess.run(cmd_hdfs_chk, capture_output=True)
+                lc.insert_tuple_hdfs(event.src_path, remote_file_path, hdfs_chk)
+        if loc_chk == hdfs_chk:
+            print("same copy")
+        else:
+            print("dif copy")
+            files_to_sync.append((event.src_path, remote_file_path))
 
         if not event.is_directory and event.src_path.endswith('.yaml'):
             issue_mr_job(event.src_path)
@@ -131,7 +120,7 @@ class Event(FileSystemEventHandler):
         print("on_deleted")
         remote_path = lc.get_remote_file_path(event.src_path)
         if event.is_directory:
-            list_of_paths = find_remote_paths(remote_path)
+            list_of_paths = find_remote_paths(remote_path, hdfs)
             lc.delete_by_remote_path(list_of_paths)
         else:
             lc.delete_by_local_path([event.src_path])
@@ -149,7 +138,7 @@ class Event(FileSystemEventHandler):
             remote_dest_path = customize_path(remoteFolder, tmp)
             if remote_src_path is not None:
                 if event.is_directory:
-                    remote_src_paths = find_remote_paths(remote_src_path)
+                    remote_src_paths = find_remote_paths(remote_src_path, hdfs)
                     local_remote_tuples = []
                     for rp in remote_src_paths:
                         if rp == remote_src_path:
@@ -171,6 +160,8 @@ class Event(FileSystemEventHandler):
 # one thread to observe and more serialized to do the changes
 # start with one thread
 if __name__ == '__main__':
+
+    files_to_sync = []
 
     parser = argparse.ArgumentParser(description='Configuring the mrbox app...')
     parser.add_argument('--localPath', type=str, help='local path of app')

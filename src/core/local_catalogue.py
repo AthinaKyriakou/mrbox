@@ -1,29 +1,11 @@
 import sqlite3
 from sqlite3 import Error
-import os
+from utils.db_util import insert_substr, update_substr, asstr
 
 SQLITE_TRUE = 1
 SQLITE_FALSE = 0
 
 # todo: handle query failures
-
-
-# prints part of an sql command based on the keys/values of the given dictionary
-# Sample output: '(alpha, beta) VALUES ("gamma", "delta")'
-def insert_substr(dic):
-    items = dic.items()
-    cols = [x[0] for x in items]
-    vals = [x[1] for x in items]
-    return '(' + ', '.join(cols) + ') VALUES (' + ', '.join(vals) + ')'
-
-
-def update_substr(dic):
-    return ', '.join([str(x) + '=' + str(dic[x]) for x in dic])
-
-
-def asstr(s, qmark='"'):
-    val = qmark + str(s) + qmark
-    return val
 
 
 class LocalCatalogue:
@@ -32,11 +14,12 @@ class LocalCatalogue:
     # Column names: #####################################
 
     ID = 'id'
-    LOC = 'local'               # local path of file/folder
-    REM = 'remote'              # remote path of file/folder
-    TIME_LOC = 'time_local'     # time of latest modification locally
-    TIME_REM = 'time_remote'    # time of latest modification remotely
-    CHK = 'checksum'            # to check validity of file, in binary
+    LOC = 'local'                   # local path of file/folder
+    HDFS = 'hdfs'                   # hdfs path of file/folder
+    TIME_LOC = 'time_local'         # time of latest modification locally
+    TIME_HDFS = 'time_hdfs'         # time of latest modification on hdfs
+    CHK_LOC = 'checksum_local'      # CRC32C checksum of local file copy
+    CHK_HDFS = 'checksum_hdfs'      # CRC32C checksum of HDFS file copy
 
     #################################################################
 
@@ -69,26 +52,73 @@ class LocalCatalogue:
     def create_table(self):
         cmd = 'CREATE TABLE IF NOT EXISTS %s (%s INTEGER PRIMARY KEY,' % (self.TABLE_NAME, self.ID)
         cmd += '%s TEXT UNIQUE,' % self.LOC
-        cmd += '%s TEXT UNIQUE,' % self.REM
+        cmd += '%s TEXT UNIQUE,' % self.HDFS
         cmd += '%s DATETIME,' % self.TIME_LOC
-        cmd += '%s DATETIME,' % self.TIME_REM
-        cmd += '%s TEXT)' % self.CHK
+        cmd += '%s DATETIME,' % self.TIME_HDFS
+        cmd += '%s TEXT' % self.CHK_LOC
+        cmd += '%s TEXT)' % self.CHK_HDFS
         conn = self.create_connection()
         c = conn.cursor()
         c.execute(cmd)
         print('Table created successfully')
         conn.close()
 
-    # todo: implement checksum, insync, linked, time_rem
-    def insert_tuple(self, loc, remote, in_sync=SQLITE_TRUE, linked=SQLITE_FALSE):
+    def insert_tuple_local(self, loc, rem, loc_chk):
+        """
+        When a file is created locally
+        :param loc: local path
+        :param rem: remote path
+        :param loc_chk: checksum of file copy locally
+        :return:
+        """
+        dic = {self.LOC: asstr(loc),
+               self.HDFS: asstr(rem),
+               self.TIME_LOC: asstr('datetime("now")', qmark=''),
+               self.TIME_HDFS: asstr(None),
+               self.CHK_LOC: asstr(loc_chk),
+               self.CHK_HDFS: asstr(None)}
+        self.insert_tuple(dic)
+
+    def insert_tuple_hdfs(self, loc, rem, hdfs_chk):
+        """
+        When a file is created on hdfs and will be copied locally
+        :param loc: local path
+        :param rem: remote path
+        :param hdfs_chk: checksum of file copy on hdfs
+        :return:
+        """
+        dic = {self.LOC: asstr(loc),
+               self.HDFS: asstr(rem),
+               self.TIME_LOC: asstr(None),
+               self.TIME_HDFS: asstr('datetime("now")', qmark=''),
+               self.CHK_LOC: asstr(None),
+               self.CHK_HDFS: asstr(hdfs_chk)}
+        self.insert_tuple(dic)
+
+    def insert_tuple(self, dic):
         conn = self.create_connection()
         c = conn.cursor()
-        dic = {self.LOC: asstr(loc),
-               self.REM: asstr(remote),
-               self.TIME_LOC: asstr('datetime("now")', qmark=''),
-               self.TIME_REM: asstr(None),
-               self.CHK: asstr(None)}
         cmd = "INSERT OR IGNORE INTO %s %s" % (self.TABLE_NAME, insert_substr(dic))
+        c.execute(cmd)
+        conn.commit()
+        conn.close()
+
+    def update_tuple_local(self, local_path, loc_chk):
+        dic = {self.TIME_LOC: asstr('datetime("now")', qmark=''),
+               self.CHK_LOC: asstr(loc_chk)}
+        self.update_tuple(self.LOC, local_path, dic)
+
+    def update_tuple(self, col, col_val, dic):
+        """
+        Updates an existing db tuple
+        :param col: the db column by which the update is made
+        :param col_val: the value of the db column
+        :param dic: columns to update + their new values
+        :return:
+        """
+        conn = self.create_connection()
+        c = conn.cursor()
+        cmd = 'UPDATE %s SET %s WHERE %s="%s"' % (self.TABLE_NAME, update_substr(dic), col, col_val)
         c.execute(cmd)
         conn.commit()
         conn.close()
@@ -110,19 +140,6 @@ class LocalCatalogue:
             return remote_path
         except IndexError:
             print("Local path " + local_path + " does not correspond to a remote path")
-
-    def set_modified_local(self, local_path, in_sync=SQLITE_TRUE):  # todo: impl checksum, in_sync, linked, time_rem
-        self.set_modified(local_path, self.LOC, in_sync)
-
-    def set_modified(self, local_path, column_name, in_sync):
-        conn = self.create_connection()
-        c = conn.cursor()
-        d = {self.CHK: asstr(None),
-             self.TIME_LOC: asstr('datetime("now")', qmark='')}
-        cmd = 'UPDATE %s SET %s WHERE %s="%s"' % (self.TABLE_NAME, update_substr(d), column_name, local_path)
-        c.execute(cmd)
-        conn.commit()
-        conn.close()
 
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db
@@ -155,7 +172,7 @@ class LocalCatalogue:
             for rp in list_of_remote_paths:
                 # srp = os.path.join(remote_starting_path, rp)
                 # cmd = 'DELETE FROM %s WHERE %s="%s"' % (self.TABLE_NAME, self.REM, srp)
-                cmd = 'DELETE FROM %s WHERE %s="%s"' % (self.TABLE_NAME, self.REM, rp)
+                cmd = 'DELETE FROM %s WHERE %s="%s"' % (self.TABLE_NAME, self.HDFS, rp)
                 c.execute(cmd)
             # c.execute("fnord")          # to check if transaction rollbacks
             conn.commit()
@@ -180,7 +197,7 @@ class LocalCatalogue:
                 new_lp = t[1]
                 new_rp = t[2]
                 cmd = 'UPDATE %s SET %s="%s", %s="%s" WHERE %s="%s"' % (self.TABLE_NAME, self.LOC, new_lp,
-                                                                        self.REM, new_rp, self.REM, cur_rp)
+                                                                        self.HDFS, new_rp, self.HDFS, cur_rp)
                 print(cmd)
                 c.execute(cmd)
             conn.commit()
