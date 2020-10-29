@@ -10,7 +10,7 @@ from watchdog.events import FileSystemEventHandler
 from hdfs3 import HDFileSystem
 from core.local_catalogue import LocalCatalogue
 from utils.path_util import customize_path, remove_prefix
-from utils.hdfs_util import find_remote_paths, create_locally_synced_hdfs_dir, hdfs_file_checksum, sync_local_hdfs
+from utils.hdfs_util import find_remote_paths, create_locally_synced_hdfs_dir, hdfs_file_checksum, compare_local_hdfs_copy
 from utils.file_util import crc32c_file_checksum
 
 
@@ -63,17 +63,22 @@ class Event(FileSystemEventHandler):
         print(event.event_type, event.src_path)
 
     def on_modified(self, event):
-        # Replaces the updated file on HDFS and updates the local db 
-        global hdfs, lc
+        # When a file is modified locally
+        global hdfs, lc, hadoopPath, files_to_sync
         print("on_modified")
 
-        if event.is_directory:
+        if event.is_directory:  # todo: implement dir checksum
             return
-
+        lc.update_tuple_local(event.src_path, crc32c_file_checksum(event.src_path, 'file'))
         remote_file_path = lc.get_remote_file_path(event.src_path)
-        hdfs.rm(remote_file_path)
-        hdfs.put(event.src_path, remote_file_path)
-        lc.set_modified_local(event.src_path)  # todo: implement in_sync logic
+        try:
+            hdfs.rm(remote_file_path)
+            hdfs.put(event.src_path, remote_file_path)
+            lc.update_tuple_hdfs(event.src_path, hdfs_file_checksum(hadoopPath, remote_file_path, 'file'))
+        except:  # todo: replace with specific exception once found
+            print("HDFS operation failed!")
+
+        compare_local_hdfs_copy(lc, event.src_path, files_to_sync)
 
     def on_created(self, event):
         """ Creates dir / file on HDFS & adds mapping with mapping between local + hdfs path in the local db
@@ -81,31 +86,37 @@ class Event(FileSystemEventHandler):
         global hdfs, lc, localFolder, remoteFolder, hadoopPath, files_to_sync
         print("on_created")
 
-        if event.is_directory:
-            ftype = 'dir'
-        else:
-            ftype = 'file'
-
         filename = remove_prefix(localFolder, event.src_path)
         remote_file_path = customize_path(remoteFolder, filename)
 
-        loc_chk = crc32c_file_checksum(event.src_path, ftype)  # todo: need to implement dir checksum
+        if event.is_directory:
+            ftype = 'dir' # todo: need to implement dir checksum
+        else:
+            ftype = 'file'
+
+        loc_chk = crc32c_file_checksum(event.src_path, ftype)
         if lc.check_local_path_exists(event.src_path):
             lc.update_tuple_local(event.src_path, loc_chk)
         else:
             lc.insert_tuple_local(event.src_path, remote_file_path, loc_chk)
 
-        if not hdfs.exists(remote_file_path):
-            if event.is_directory:  # todo: need to implement dir checksum
+        if not hdfs.exists(remote_file_path) and event.is_directory:
+            print("creating dir on hdfs")
+            try:
                 hdfs.mkdir(remote_file_path)
-                hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, 'dir')
-            if not event.is_directory:
+            except:
+                print("HDFS operation failed!")
+        if not hdfs.exists(remote_file_path) and not event.is_directory:
+            print("creating file on hdfs")
+            try:
                 hdfs.put(event.src_path, remote_file_path)
-                hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, 'file')
-            lc.update_tuple_hdfs(event.src_path, hdfs_chk)
+            except:
+                print("HDFS operation failed!")
 
-        # compare checksums: if same do nothing, if dif keep most recent in local + hdfs the most recent copy
-        sync_local_hdfs(lc, hdfs, event.src_path, remote_file_path)
+        hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, ftype)
+        lc.update_tuple_hdfs(event.src_path, hdfs_chk)
+        # lc.update_tuple_hdfs(event.src_path, 'aaaaaaaa')  # to test syncing
+        compare_local_hdfs_copy(lc, event.src_path, files_to_sync)
 
         if not event.is_directory and event.src_path.endswith('.yaml'):
             issue_mr_job(event.src_path)

@@ -141,50 +141,34 @@ class LocalCatalogue:
         conn.commit()
         conn.close()
 
-    # todo: group the get queries
-    def get_remote_file_path(self, local_path):  # todo: check how the exception will be handled
-        """ Queries the SQLite db to get the remote_path corresponding to the given local_path
-        :param local_path: path of file/folder locally
-        :return: path of file/folder remotely
-                    or raises exception if local_path does not exist in the db and returns None"""
-
-        conn = self.create_connection()
-        c = conn.cursor()
-        cmd = "SELECT hdfs FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
-        c.execute(cmd)
-        ret = c.fetchall()  # returns a list of tuples
-        conn.close()
-        try:
-            remote_path = ret[0][0]
-            return remote_path
-        except IndexError:
-            print("Local path " + local_path + " does not correspond to a remote path")
+    def get_remote_file_path(self, local_path):
+        return self.get_val_by_local_path(self.HDFS, local_path)
 
     def get_loc_chk(self, local_path):
-        conn = self.create_connection()
-        c = conn.cursor()
-        cmd = "SELECT chk_local FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
-        c.execute(cmd)
-        ret = c.fetchall()  # returns a list of tuples
-        conn.close()
-        try:
-            remote_path = ret[0][0]
-            return remote_path
-        except IndexError:
-            print("Local path " + local_path + " does not exist in the db")
+        return self.get_val_by_local_path(self.CHK_LOC, local_path)
 
     def get_hdfs_chk(self, local_path):
+        return self.get_val_by_local_path(self.CHK_HDFS, local_path)
+
+    def get_time_loc(self, local_path):
+        return self.get_val_by_local_path(self.TIME_LOC, local_path)
+
+    def get_time_hdfs(self, local_path):
+        return self.get_val_by_local_path(self.TIME_HDFS, local_path)
+
+    def get_val_by_local_path(self, col, local_path):  # todo: check how the exception will be handled
         conn = self.create_connection()
         c = conn.cursor()
-        cmd = "SELECT chk_hdfs FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
+        cmd = "SELECT %s FROM %s WHERE %s=%s" % (col, self.TABLE_NAME, self.LOC, asstr(local_path))
         c.execute(cmd)
         ret = c.fetchall()  # returns a list of tuples
         conn.close()
         try:
-            remote_path = ret[0][0]
-            return remote_path
+            result = ret[0][0]
+            return result
         except IndexError:
             print("Local path " + local_path + " does not exist in the db")
+            return None
 
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db

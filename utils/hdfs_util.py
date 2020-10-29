@@ -1,7 +1,7 @@
 import subprocess
 import os
+from datetime import datetime
 from utils.path_util import customize_path, remove_prefix
-from utils.db_util import asstr
 
 
 def find_remote_paths(starting_path, hdfs):
@@ -57,17 +57,14 @@ def hdfs_file_checksum(hadoop_path, hdfs_filepath, ftype):
     return res[len(prefix):].rstrip("\n")
 
 
-def sync_local_hdfs(lc, hdfs, loc, rem):
-    print("Synching hdfs and local")
+def compare_local_hdfs_copy(lc, loc, files_to_sync):
     loc_chk = lc.get_loc_chk(loc)
     hdfs_chk = lc.get_hdfs_chk(loc)
-    print("Loc chk: " + asstr(loc_chk))
-    print("HDFS chk: " + asstr(hdfs_chk))
     if loc_chk == hdfs_chk:
-        print("sameeeeeee")
+        return
     else:
-        print("diiiiiif")
-
+        print("dif checksums found!")
+        files_to_sync.append((loc, lc.get_remote_file_path(loc)))
 
 if __name__ == '__main__':  # for tests
     # cmd = customize_path('/home/athina/hadoop-3.2.1', 'bin/hdfs') + " dfs -ls /"
