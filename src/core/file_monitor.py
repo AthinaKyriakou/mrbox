@@ -103,12 +103,12 @@ class Event(FileSystemEventHandler):
                 hdfs.put(event.src_path, remote_file_path)
                 hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, 'file')
             lc.update_tuple_hdfs(event.src_path, hdfs_chk)
-        """
+
         # compare checksums: if same do nothing, if dif keep most recent in local + hdfs the most recent copy
         sync_local_hdfs(lc, hdfs, event.src_path, remote_file_path)
 
         if not event.is_directory and event.src_path.endswith('.yaml'):
-            issue_mr_job(event.src_path)"""
+            issue_mr_job(event.src_path)
 
     def on_deleted(self, event):
         """ Deletes dir / file from HDFS & removes the corresponding tuple from the local db

@@ -63,6 +63,10 @@ def sync_local_hdfs(lc, hdfs, loc, rem):
     hdfs_chk = lc.get_hdfs_chk(loc)
     print("Loc chk: " + asstr(loc_chk))
     print("HDFS chk: " + asstr(hdfs_chk))
+    if loc_chk == hdfs_chk:
+        print("sameeeeeee")
+    else:
+        print("diiiiiif")
 
 
 if __name__ == '__main__':  # for tests
