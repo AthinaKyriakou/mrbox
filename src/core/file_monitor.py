@@ -10,7 +10,7 @@ from watchdog.events import FileSystemEventHandler
 from hdfs3 import HDFileSystem
 from core.local_catalogue import LocalCatalogue
 from utils.path_util import customize_path, remove_prefix
-from utils.hdfs_util import find_remote_paths, create_locally_synced_hdfs_dir
+from utils.hdfs_util import find_remote_paths, create_locally_synced_hdfs_dir, hdfs_file_checksum, sync_local_hdfs
 from utils.file_util import crc32c_file_checksum
 
 
@@ -57,9 +57,6 @@ def issue_mr_job(filepath):
         print("Map-Reduce job failed!")
         print(e.output)
 
-def on_created_dir(locpath, rempath):
-    print("on_created_dir")
-
 
 class Event(FileSystemEventHandler):
     def on_any_event(self, event):
@@ -83,33 +80,35 @@ class Event(FileSystemEventHandler):
         If created file is .yaml issues a MR job"""
         global hdfs, lc, localFolder, remoteFolder, hadoopPath, files_to_sync
         print("on_created")
+
+        if event.is_directory:
+            ftype = 'dir'
+        else:
+            ftype = 'file'
+
         filename = remove_prefix(localFolder, event.src_path)
         remote_file_path = customize_path(remoteFolder, filename)
 
-        if event.is_directory and hdfs.exists(remote_file_path):
-            hdfs.mkdir(remote_file_path)
-            lc.insert_tuple_hdfs(event.src_path, remote_file_path, None)       # todo: implement dir checksum
-        elif event.is_directory and not hdfs.exists(remote_file_path):
+        loc_chk = crc32c_file_checksum(event.src_path, ftype)  # todo: need to implement dir checksum
+        if lc.check_local_path_exists(event.src_path):
+            lc.update_tuple_local(event.src_path, loc_chk)
         else:
-            loc_chk = crc32c_file_checksum(event.src_path)
-            lc.insert_tuple_local(event.src_path, remote_file_path, loc_chk)  # todo: a
-            if hdfs.exists(remote_file_path):
-                print("File already exists on hdfs, get checksum from the db")
-                hdfs_chk = lc.get_hdfs_chk(remote_file_path)
-            else:
+            lc.insert_tuple_local(event.src_path, remote_file_path, loc_chk)
+
+        if not hdfs.exists(remote_file_path):
+            if event.is_directory:  # todo: need to implement dir checksum
+                hdfs.mkdir(remote_file_path)
+                hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, 'dir')
+            if not event.is_directory:
                 hdfs.put(event.src_path, remote_file_path)
-                cmd_hdfs_chk = customize_path(hadoopPath, 'bin/hdfs') + \
-                      " dfs -Ddfs.checksum.combine.mode=COMPOSITE_CRC -checksum " + remote_file_path
-                hdfs_chk = subprocess.run(cmd_hdfs_chk, capture_output=True)
-                lc.insert_tuple_hdfs(event.src_path, remote_file_path, hdfs_chk)
-        if loc_chk == hdfs_chk:
-            print("same copy")
-        else:
-            print("dif copy")
-            files_to_sync.append((event.src_path, remote_file_path))
+                hdfs_chk = hdfs_file_checksum(hadoopPath, remote_file_path, 'file')
+            lc.update_tuple_hdfs(event.src_path, hdfs_chk)
+        """
+        # compare checksums: if same do nothing, if dif keep most recent in local + hdfs the most recent copy
+        sync_local_hdfs(lc, hdfs, event.src_path, remote_file_path)
 
         if not event.is_directory and event.src_path.endswith('.yaml'):
-            issue_mr_job(event.src_path)
+            issue_mr_job(event.src_path)"""
 
     def on_deleted(self, event):
         """ Deletes dir / file from HDFS & removes the corresponding tuple from the local db
@@ -165,7 +164,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Configuring the mrbox app...')
     parser.add_argument('--localPath', type=str, help='local path of app')
-    parser.add_argument('--dbFile', default='test.db', type=str, help='sqlite db file')
+    parser.add_argument('--dbFile', default='mrbox.db', type=str, help='sqlite db file')
     parser.add_argument('--hdfsPath', type=str, default='/', help='hdfs path')
     parser.add_argument('--hdfsHost', type=str, help='hdfs host')
     parser.add_argument('--hdfsPort', default=9000, type=int, help='hdfs port')

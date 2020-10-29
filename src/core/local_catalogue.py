@@ -2,9 +2,6 @@ import sqlite3
 from sqlite3 import Error
 from utils.db_util import insert_substr, update_substr, asstr
 
-SQLITE_TRUE = 1
-SQLITE_FALSE = 0
-
 # todo: handle query failures
 
 
@@ -18,8 +15,8 @@ class LocalCatalogue:
     HDFS = 'hdfs'                   # hdfs path of file/folder
     TIME_LOC = 'time_local'         # time of latest modification locally
     TIME_HDFS = 'time_hdfs'         # time of latest modification on hdfs
-    CHK_LOC = 'checksum_local'      # CRC32C checksum of local file copy
-    CHK_HDFS = 'checksum_hdfs'      # CRC32C checksum of HDFS file copy
+    CHK_LOC = 'chk_local'           # CRC32C checksum of local file copy
+    CHK_HDFS = 'chk_hdfs'           # CRC32C checksum of HDFS file copy
 
     #################################################################
 
@@ -55,13 +52,29 @@ class LocalCatalogue:
         cmd += '%s TEXT UNIQUE,' % self.HDFS
         cmd += '%s DATETIME,' % self.TIME_LOC
         cmd += '%s DATETIME,' % self.TIME_HDFS
-        cmd += '%s TEXT' % self.CHK_LOC
+        cmd += '%s TEXT,' % self.CHK_LOC
         cmd += '%s TEXT)' % self.CHK_HDFS
         conn = self.create_connection()
         c = conn.cursor()
         c.execute(cmd)
         print('Table created successfully')
         conn.close()
+
+    def check_local_path_exists(self, local_path):
+        return self.check_record_exists(self.LOC, local_path)
+
+    def check_record_exists(self, col, col_val):
+        conn = self.create_connection()
+        c = conn.cursor()
+        cmd = 'SELECT COUNT(1) FROM %s WHERE %s="%s"' % (self.TABLE_NAME, col, col_val)
+        c.execute(cmd)
+        ret = c.fetchall()  # returns a list
+        conn.commit()
+        conn.close()
+        if ret[0][0] > 0:
+            return True
+        else:
+            return False
 
     def insert_tuple_local(self, loc, rem, loc_chk):
         """
@@ -108,6 +121,11 @@ class LocalCatalogue:
                self.CHK_LOC: asstr(loc_chk)}
         self.update_tuple(self.LOC, local_path, dic)
 
+    def update_tuple_hdfs(self, local_path, hdfs_chk):
+        dic = {self.TIME_HDFS: asstr('datetime("now")', qmark=''),
+               self.CHK_HDFS: asstr(hdfs_chk)}
+        self.update_tuple(self.LOC, local_path, dic)            # update by local path, todo: create index
+
     def update_tuple(self, col, col_val, dic):
         """
         Updates an existing db tuple
@@ -123,6 +141,7 @@ class LocalCatalogue:
         conn.commit()
         conn.close()
 
+    # todo: group the get queries
     def get_remote_file_path(self, local_path):  # todo: check how the exception will be handled
         """ Queries the SQLite db to get the remote_path corresponding to the given local_path
         :param local_path: path of file/folder locally
@@ -131,7 +150,7 @@ class LocalCatalogue:
 
         conn = self.create_connection()
         c = conn.cursor()
-        cmd = "SELECT remote FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
+        cmd = "SELECT hdfs FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
         c.execute(cmd)
         ret = c.fetchall()  # returns a list of tuples
         conn.close()
@@ -140,6 +159,32 @@ class LocalCatalogue:
             return remote_path
         except IndexError:
             print("Local path " + local_path + " does not correspond to a remote path")
+
+    def get_loc_chk(self, local_path):
+        conn = self.create_connection()
+        c = conn.cursor()
+        cmd = "SELECT chk_local FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
+        c.execute(cmd)
+        ret = c.fetchall()  # returns a list of tuples
+        conn.close()
+        try:
+            remote_path = ret[0][0]
+            return remote_path
+        except IndexError:
+            print("Local path " + local_path + " does not exist in the db")
+
+    def get_hdfs_chk(self, local_path):
+        conn = self.create_connection()
+        c = conn.cursor()
+        cmd = "SELECT chk_hdfs FROM %s WHERE local=%s" % (self.TABLE_NAME, asstr(local_path))
+        c.execute(cmd)
+        ret = c.fetchall()  # returns a list of tuples
+        conn.close()
+        try:
+            remote_path = ret[0][0]
+            return remote_path
+        except IndexError:
+            print("Local path " + local_path + " does not exist in the db")
 
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db
