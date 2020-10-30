@@ -1,5 +1,3 @@
-mrbox
-------------------------------------
 Quick Configuration (Linux) 
 ------------------------------------
 To install miniconda:
