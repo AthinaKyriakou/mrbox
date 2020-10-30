@@ -8,12 +8,10 @@ HADOOP_PATH=/home/athina/hadoop-3.2.1
 
 help:
 	@echo "Help"
-	
 
 setup:
 	wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
 	bash Miniconda3-latest-Linux-x86_64.sh
-
 
 build:
 	source ~/miniconda3/etc/profile.d/conda.sh && \
