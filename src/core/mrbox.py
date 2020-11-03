@@ -39,7 +39,8 @@ if __name__ == '__main__':
     hdfs.mkdir(remote_folder)
 
     # create sqlite db
-    lc = LocalCatalogue(config['User']['dbFile'])
+    full_db_path = os.path.join(local_folder, config['User']['dbFile'])
+    lc = LocalCatalogue(full_db_path)
 
     hadoop_path = config['User']['hadoopPath']
 

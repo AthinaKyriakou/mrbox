@@ -3,8 +3,6 @@ SHELL := /bin/bash
 PROJECT_NAME=test10
 MAIN_EXEC=./core/mrbox.py
 PATH_FOLDER=/home/athina/Desktop/praktiki/mrbox
-HDFS_HOST=192.168.1.122
-HADOOP_PATH=/home/athina/hadoop-3.2.1
 
 help:
 	@echo "Help"
