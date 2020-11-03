@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 PROJECT_NAME=test10
-MAIN_EXEC=./core/file_monitor.py
+MAIN_EXEC=./core/mrbox.py
 PATH_FOLDER=/home/athina/Desktop/praktiki/mrbox
 HDFS_HOST=192.168.1.122
 HADOOP_PATH=/home/athina/hadoop-3.2.1
@@ -22,6 +22,6 @@ run:
 	conda activate $(PROJECT_NAME) && \
 	export PYTHONPATH=$(PATH_FOLDER):${PYTHONPATH} && \
 	cd src && \
-	python $(MAIN_EXEC) --localPath $(PATH_FOLDER) --hdfsHost $(HDFS_HOST) --hadoopPath $(HADOOP_PATH)
+	python $(MAIN_EXEC)
 
 .PHONY: help build run

@@ -66,6 +66,7 @@ def compare_local_hdfs_copy(lc, loc, files_to_sync):
         print("dif checksums found!")
         files_to_sync.append((loc, lc.get_remote_file_path(loc)))
 
+
 if __name__ == '__main__':  # for tests
     # cmd = customize_path('/home/athina/hadoop-3.2.1', 'bin/hdfs') + " dfs -ls /"
     # subprocess.run(cmd, shell=True, check=True)
