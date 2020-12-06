@@ -1,5 +1,7 @@
 import crc32c
 
+# todo: check if i can merge with mrbox_file
+
 
 def crc32c_file_checksum(filepath, ftype):
     """

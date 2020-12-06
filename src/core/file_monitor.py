@@ -10,13 +10,13 @@ from utils.file_util import crc32c_file_checksum
 
 
 class Event(FileSystemEventHandler):
-    def __init__(self, hdfs, lc, hadoop_path, local_folder, remote_folder, files_to_sync):
+    def __init__(self, hdfs, lc, hadoop_path, local_folder, remote_folder, local_file_size_limit):
         self.hdfs = hdfs
         self.lc = lc
         self.hadoopPath = hadoop_path
         self.localFolder = local_folder
         self.remoteFolder = remote_folder
-        self.filesToSync = files_to_sync
+        self.local_file_size_limit = local_file_size_limit
 
     def issue_mr_job(self, filepath):
         """
@@ -54,7 +54,8 @@ class Event(FileSystemEventHandler):
                  + " -input " + hdfs_input_path + " -output " + hdfs_output_path
 
         try:
-            create_locally_synced_hdfs_dir(cmd_mr, self.hdfs, self.lc, local_output_path, hdfs_output_path, self.hadoopPath)
+            create_locally_synced_hdfs_dir(cmd_mr, self.hdfs, self.lc, local_output_path, hdfs_output_path,
+                                           self.hadoopPath)  # todo: change here based on size
         except subprocess.CalledProcessError as e:
             print("Map-Reduce job failed!")
             print(e.output)
@@ -74,10 +75,10 @@ class Event(FileSystemEventHandler):
             self.hdfs.rm(remote_file_path)
             self.hdfs.put(event.src_path, remote_file_path)
             self.lc.update_tuple_hdfs(event.src_path, hdfs_file_checksum(self.hadoopPath, remote_file_path, 'file'))
-        except:  # todo: replace with specific exception once found
+        except:  # todo: replace with specific exception once found, ADD SYNC
             print("HDFS operation failed!")
 
-        compare_local_hdfs_copy(self.lc, event.src_path, self.filesToSync)
+        compare_local_hdfs_copy(self.lc, event.src_path)
 
     def on_created(self, event):
         """ Creates dir / file on HDFS & adds mapping with mapping between local + hdfs path in the local db
@@ -88,11 +89,11 @@ class Event(FileSystemEventHandler):
         remote_file_path = customize_path(self.remoteFolder, filename)
 
         if event.is_directory:
-            ftype = 'dir' # todo: need to implement dir checksum
+            ftype = 'dir'
         else:
             ftype = 'file'
-
         loc_chk = crc32c_file_checksum(event.src_path, ftype)
+
         if self.lc.check_local_path_exists(event.src_path):
             self.lc.update_tuple_local(event.src_path, loc_chk)
         else:
@@ -100,21 +101,16 @@ class Event(FileSystemEventHandler):
 
         if not self.hdfs.exists(remote_file_path) and event.is_directory:
             print("creating dir on hdfs")
-            try:
-                self.hdfs.mkdir(remote_file_path)
-            except:
-                print("HDFS operation failed!")
+            self.hdfs.mkdir(remote_file_path)
+
         if not self.hdfs.exists(remote_file_path) and not event.is_directory:
             print("creating file on hdfs")
-            try:
-                self.hdfs.put(event.src_path, remote_file_path)
-            except:
-                print("HDFS operation failed!")
+            self.hdfs.put(event.src_path, remote_file_path)
 
         hdfs_chk = hdfs_file_checksum(self.hadoopPath, remote_file_path, ftype)
-        self.lc.update_tuple_hdfs(event.src_path, hdfs_chk)
-        # lc.update_tuple_hdfs(event.src_path, 'aaaaaaaa')  # to test syncing
-        compare_local_hdfs_copy(self.lc, event.src_path, self.filesToSync)
+        self.lc.update_tuple_hdfs(event.src_path, hdfs_chk) # todo: make the update only if computed hdfs checksum is dif from the one in db
+
+        compare_local_hdfs_copy(self.lc, event.src_path)
 
         if not event.is_directory and event.src_path.endswith('.yaml'):
             self.issue_mr_job(event.src_path)

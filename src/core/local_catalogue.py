@@ -3,6 +3,7 @@ from sqlite3 import Error
 from utils.db_util import insert_substr, update_substr, asstr
 
 # todo: handle query failures
+# todo: might need to specify which HDFS in case multiple
 
 
 class LocalCatalogue:
@@ -17,6 +18,7 @@ class LocalCatalogue:
     TIME_HDFS = 'time_hdfs'         # time of latest modification on hdfs
     CHK_LOC = 'chk_local'           # CRC32C checksum of local file copy
     CHK_HDFS = 'chk_hdfs'           # CRC32C checksum of HDFS file copy
+    TYPE_LOC = 'type_loc'           # the type of the local file copy: 'file', 'link', 'dir'
 
     #################################################################
 
@@ -36,9 +38,9 @@ class LocalCatalogue:
             return conn
         except Error as e:
             print(e)
-            raise
+            raise e
 
-    def check_table_exists(self):
+    def check_table_exists(self):  # todo: check error
         cmd = "SELECT name FROM sqlite_master WHERE type='table' AND name=%s" % asstr(self.TABLE_NAME)
         conn = self.create_connection()
         c = conn.cursor()
@@ -46,14 +48,15 @@ class LocalCatalogue:
         conn.close()
         return ret
 
-    def create_table(self):
+    def create_table(self):  # todo: check error
         cmd = 'CREATE TABLE IF NOT EXISTS %s (%s INTEGER PRIMARY KEY,' % (self.TABLE_NAME, self.ID)
         cmd += '%s TEXT UNIQUE,' % self.LOC
         cmd += '%s TEXT UNIQUE,' % self.HDFS
         cmd += '%s DATETIME,' % self.TIME_LOC
         cmd += '%s DATETIME,' % self.TIME_HDFS
         cmd += '%s TEXT,' % self.CHK_LOC
-        cmd += '%s TEXT)' % self.CHK_HDFS
+        cmd += '%s TEXT' % self.CHK_HDFS
+        cmd += '%s TEXT)' % self.TYPE_LOC
         conn = self.create_connection()
         c = conn.cursor()
         c.execute(cmd)
@@ -64,17 +67,23 @@ class LocalCatalogue:
         return self.check_record_exists(self.LOC, local_path)
 
     def check_record_exists(self, col, col_val):
-        conn = self.create_connection()
-        c = conn.cursor()
-        cmd = 'SELECT COUNT(1) FROM %s WHERE %s="%s"' % (self.TABLE_NAME, col, col_val)
-        c.execute(cmd)
-        ret = c.fetchall()  # returns a list
-        conn.commit()
-        conn.close()
-        if ret[0][0] > 0:
-            return True
-        else:
-            return False
+        conn = None
+        try:
+            conn = self.create_connection()
+            c = conn.cursor()
+            cmd = 'SELECT COUNT(1) FROM %s WHERE %s="%s"' % (self.TABLE_NAME, col, col_val)
+            c.execute(cmd)
+            ret = c.fetchall()  # returns a list
+            conn.commit()
+            if ret[0][0] > 0:
+                return True
+            else:
+                return False
+        except sqlite3.Error as e:
+            raise e
+        finally:
+            if conn:
+                conn.close()
 
     def insert_tuple_local(self, loc, rem, loc_chk):
         """
@@ -109,12 +118,18 @@ class LocalCatalogue:
         self.insert_tuple(dic)
 
     def insert_tuple(self, dic):
-        conn = self.create_connection()
-        c = conn.cursor()
-        cmd = "INSERT OR IGNORE INTO %s %s" % (self.TABLE_NAME, insert_substr(dic))
-        c.execute(cmd)
-        conn.commit()
-        conn.close()
+        conn = None
+        try:
+            conn = self.create_connection()
+            c = conn.cursor()
+            cmd = "INSERT OR IGNORE INTO %s %s" % (self.TABLE_NAME, insert_substr(dic))
+            c.execute(cmd)
+            conn.commit()
+        except sqlite3.Error as e:
+            raise e
+        finally:
+            if conn:
+                conn.close()
 
     def update_tuple_local(self, local_path, loc_chk):
         dic = {self.TIME_LOC: asstr('datetime("now")', qmark=''),
@@ -134,12 +149,18 @@ class LocalCatalogue:
         :param dic: columns to update + their new values
         :return:
         """
-        conn = self.create_connection()
-        c = conn.cursor()
-        cmd = 'UPDATE %s SET %s WHERE %s="%s"' % (self.TABLE_NAME, update_substr(dic), col, col_val)
-        c.execute(cmd)
-        conn.commit()
-        conn.close()
+        conn = None
+        try:
+            conn = self.create_connection()
+            c = conn.cursor()
+            cmd = 'UPDATE %s SET %s WHERE %s="%s"' % (self.TABLE_NAME, update_substr(dic), col, col_val)
+            c.execute(cmd)
+            conn.commit()
+        except sqlite3.Error as e:
+            raise e
+        finally:
+            if conn:
+                conn.close()
 
     def get_remote_file_path(self, local_path):
         return self.get_val_by_local_path(self.HDFS, local_path)
@@ -156,7 +177,7 @@ class LocalCatalogue:
     def get_time_hdfs(self, local_path):
         return self.get_val_by_local_path(self.TIME_HDFS, local_path)
 
-    def get_val_by_local_path(self, col, local_path):  # todo: check how the exception will be handled
+    def get_val_by_local_path(self, col, local_path):  # todo: check error handling
         conn = self.create_connection()
         c = conn.cursor()
         cmd = "SELECT %s FROM %s WHERE %s=%s" % (col, self.TABLE_NAME, self.LOC, asstr(local_path))
@@ -172,7 +193,7 @@ class LocalCatalogue:
 
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db
-    def delete_by_local_path(self, list_of_local_paths):
+    def delete_by_local_path(self, list_of_local_paths):   # todo: check error handling
         """ Deletes by given local paths in a transaction """
         conn = self.create_connection()
         conn.isolation_level = None
@@ -191,7 +212,7 @@ class LocalCatalogue:
 
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db
-    def delete_by_remote_path(self, list_of_remote_paths):
+    def delete_by_remote_path(self, list_of_remote_paths):   # todo: check error handling
         """ Deletes by given remote paths in a transaction """
         conn = self.create_connection()
         conn.isolation_level = None
@@ -210,6 +231,7 @@ class LocalCatalogue:
             conn.rollback()
         conn.close()
 
+    # todo: check error handling
     def update_by_remote_path(self, tuples_list):       # todo: can also happen by local if needed
         """
         Updates local and remote paths after a file / folder has moved, queries db table by local path

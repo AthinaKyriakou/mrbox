@@ -30,6 +30,7 @@ if __name__ == '__main__':
     config.read(config_filepath)
 
     local_folder = customize_path(config['User']['localPath'], 'mrbox')
+    local_file_size_limit_MB = config['User']['localFileSizeMB']
     remote_folder = customize_path(config['User']['hdfsPath'], 'mrbox')
     if not os.path.exists(local_folder):
         os.mkdir(local_folder)
@@ -45,11 +46,13 @@ if __name__ == '__main__':
     hadoop_path = config['User']['hadoopPath']
 
     # list with tuples of (local_path, remote_path) of files that are not synced between local + hdfs dir
-    files_to_sync = []
 
-    # monitor /mrbox directory and log events generated
+    # todo: run sync thread for initial consistency with local folder
+
+    # create thread to monitor /mrbox directory and log events generated
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    event_handler = Event(hdfs, lc, hadoop_path, local_folder, remote_folder, files_to_sync)
+
+    event_handler = Event(hdfs, lc, hadoop_path, local_folder, remote_folder, local_file_size_limit_MB)
     observer = Observer()
     observer.schedule(event_handler, local_folder, recursive=True)
     observer.start()
