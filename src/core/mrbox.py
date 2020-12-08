@@ -8,6 +8,7 @@ from hdfs3 import HDFileSystem
 from core.local_catalogue import LocalCatalogue
 from core.hadoop_interface import HadoopInterface
 from utils.path_util import customize_path
+from utils.file_util import bytes_to_mb
 from core.file_monitor import Event
 from core.mrbox_object import MRBoxObj
 
@@ -37,7 +38,8 @@ if __name__ == '__main__':
     remote_folder = customize_path(config['User']['hdfsPath'], 'mrbox')
     if not os.path.exists(local_folder):
         os.mkdir(local_folder)
-    local = MRBoxObj(local_folder, local_file_size_limit_MB, remote_folder)
+    local_file_size_limit_bytes = bytes_to_mb(int(local_file_size_limit_MB))
+    local = MRBoxObj(local_folder, local_file_size_limit_bytes, remote_folder)
 
     # connect to hdfs and create hadoop interface, todo: check how to create list of multiple hadoops
     hdfs_con = HDFileSystem(host=config['User']['hdfsHost'], port=config['User'].getint('hdfsPort'))
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     hadoop = HadoopInterface(hdfs_con, hadoop_path)
 
     # create sqlite db
-    full_db_path = os.path.join(local_folder, config['User']['dbFile'])
+    full_db_path = os.path.join(config['User']['localPath'], config['User']['dbFile'])
     lc = LocalCatalogue(full_db_path)
 
     # todo: run sync thread for initial consistency with local folder

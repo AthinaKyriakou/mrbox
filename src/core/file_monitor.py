@@ -43,7 +43,7 @@ class Event(FileSystemEventHandler):
 
         # need to generate local + remote output paths
         local_output_path = customize_path(self.local.localPath, output_path)
-        hdfs_output_path = customize_path(self.local.localPath, output_path)
+        hdfs_output_path = customize_path(self.local.remotePath, output_path)
 
         # issue MR job
         cmd_mr = customize_path(self.hadoop.hadoopPath, 'bin/hadoop') + " jar " \
@@ -115,7 +115,7 @@ class Event(FileSystemEventHandler):
 
         # compare_local_hdfs_copy(self.lc, event.src_path)
 
-        if not obj.is_file() and event.src_path.endswith('.yaml'):
+        if obj.is_file() and event.src_path.endswith('.yaml'):
             self.issue_mr_job(obj.localPath)
 
     # todo: test + with links

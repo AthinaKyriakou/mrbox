@@ -1,16 +1,21 @@
 import subprocess
-import os
-from core.mrbox_object import MRBoxObj
 from utils.path_util import customize_path, remove_prefix
 
 
 def hdfs_file_size(hadoop_path, hdfs_filepath):  # todo: how to handle dirs
-    cmd_hdfs_file_size = customize_path(hadoop_path, 'bin/hdfs') + " dfs -du -h " + hdfs_filepath
+    """
+    Returns the size of a hadoop file in bytes
+    :param hadoop_path:
+    :param hdfs_filepath:
+    :return:
+    """
+    cmd_hdfs_file_size = customize_path(hadoop_path, 'bin/hdfs') + " dfs -ls " + hdfs_filepath
     res = subprocess.run(cmd_hdfs_file_size, shell=True, check=True, capture_output=True, text=True)
     res = res.stdout
-    file_size = res.split("\t")[0]  # file size in bytes
-    file_size_mb = float(file_size) / (1024.0 * 1024.0)
-    return round(file_size_mb, 2)  # file size in MB
+    print("HDFS file size res: " + res)
+    file_size = res.split()[4]
+    print("HDFS file size in bytes: " + file_size)
+    return int(file_size)
 
 
 def hdfs_file_checksum(hadoop_path, hdfs_filepath, ftype):

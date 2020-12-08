@@ -39,10 +39,10 @@ class HadoopInterface:
         :return:
         """
         if mrboxf.localType == 'link':
-            with open(mrboxf.local_path, 'w+') as fp:
-                fp.write(mrboxf.remote_path)  # todo: add correct link to be opened in browser
+            with open(mrboxf.localPath, 'w+') as fp:
+                fp.write(mrboxf.remotePath)  # todo: add correct link to be opened in browser
         else:
-            self.hdfsCon.get(mrboxf.remote_path, mrboxf.local_path)
+            self.hdfsCon.get(mrboxf.remotePath, mrboxf.localPath)
 
     def find_remote_paths(self, starting_path):
         """
@@ -69,17 +69,18 @@ class HadoopInterface:
         """
 
         subprocess.run(cmd, shell=True, check=True)
-        hdfs_chk = hdfs_file_checksum(self.hadoopPath, mrbox_dir.remote_path, mrbox_dir.remote_file_type)
-        lc.insert_tuple_hdfs(mrbox_dir.local_path, mrbox_dir.remote_path, hdfs_chk, mrbox_dir.localType)
-        os.mkdir(mrbox_dir.local_path)  # creates an empty directory of hdfs outputs locally, triggers on_created()
+        hdfs_chk = hdfs_file_checksum(self.hadoopPath, mrbox_dir.remotePath, mrbox_dir.remoteType)
+        lc.insert_tuple_hdfs(mrbox_dir.localPath, mrbox_dir.remotePath, hdfs_chk, mrbox_dir.localType)
+        os.mkdir(mrbox_dir.localPath)  # creates an empty directory of hdfs outputs locally, triggers on_created()
 
         # decide if locally there will a link to the file on hdfs or the whole file
         # the same will be propagated to b2drop
-        for rp in self.ls(mrbox_dir.remote_path):
+        for rp in self.ls(mrbox_dir.remotePath):
             hdfs_chk = hdfs_file_checksum(self.hadoopPath, rp, 'file')
-            f = remove_prefix(mrbox_dir.remote_path, rp)
-            lp = customize_path(mrbox_dir.local_path, f)
+            f = remove_prefix(mrbox_dir.remotePath, rp)
+            lp = customize_path(mrbox_dir.localPath, f)
             file_size = hdfs_file_size(self.hadoopPath, rp)
-            mrbox_file = MRBoxObj(lp, mrbox_dir.local_file_size_limit, rp, file_size)
+            mrbox_file = MRBoxObj(lp, mrbox_dir.localFileLimit, rp, file_size)
             lc.insert_tuple_hdfs(lp, rp, hdfs_chk, mrbox_file.localType)
+            mrbox_file.file_info()
             self.get(mrbox_file)

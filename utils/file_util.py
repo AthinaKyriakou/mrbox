@@ -17,5 +17,11 @@ def crc32c_file_checksum(filepath, ftype):
     return ret
 
 
+def bytes_to_mb(file_size_bytes):
+    res = int(file_size_bytes*1024*1024)
+    print(res)
+    return res
+
+
 if __name__ == '__main__':  # for tests
     print(crc32c_file_checksum('/home/athina/Desktop/praktiki/mrbox/mrbox/test_input.txt', 'file'))

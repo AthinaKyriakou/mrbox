@@ -55,7 +55,7 @@ class LocalCatalogue:
         cmd += '%s DATETIME,' % self.TIME_LOC
         cmd += '%s DATETIME,' % self.TIME_HDFS
         cmd += '%s TEXT,' % self.CHK_LOC
-        cmd += '%s TEXT' % self.CHK_HDFS
+        cmd += '%s TEXT,' % self.CHK_HDFS
         cmd += '%s TEXT)' % self.TYPE_LOC
         conn = self.create_connection()
         c = conn.cursor()
