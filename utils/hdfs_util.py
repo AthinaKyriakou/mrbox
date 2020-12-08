@@ -1,58 +1,7 @@
 import subprocess
 import os
-from core.mrbox_file import MRBoxFile
+from core.mrbox_object import MRBoxObj
 from utils.path_util import customize_path, remove_prefix
-
-
-def find_remote_paths(starting_path, hdfs):
-    """
-    :param starting_path: the remote path of the file / dir that was deleted locally
-    :param hdfs: connection to hdfs
-    :return: list of remote paths of dirs + files in the file structure from starting_path (without /starting_path/)
-    """
-    print("find_remote_paths")
-    list_of_paths = [starting_path]
-    for sp, subdir, files in hdfs.walk(starting_path):
-        for name in subdir:
-            list_of_paths.append(customize_path(sp, name))
-        for name in files:
-            list_of_paths.append(customize_path(sp, name))
-    return list_of_paths
-
-
-def create_locally_synced_hdfs_dir(cmd, hdfs, lc, loc_path, hdfs_path, hadoop_path, local_file_size_limit):
-    """
-    Creates a dir on hdfs by running the cmd command and creates a copy of it locally
-    :param cmd: bash command to create hdfs dir
-    :param hdfs: the connection to HDFS namenode
-    :param lc: sqlite3 db class instance
-    :param loc_path: the path that dir will be created locally
-    :param hdfs_path: the path that dir will be created on hdfs
-    :param hadoop_path: local path where hadoop is installed
-    :param local_file_size_limit: the maximum size (MB) of a local file synced from HDFS
-    :return:
-    """
-
-    subprocess.run(cmd, shell=True, check=True)
-    hdfs_chk = hdfs_file_checksum(hadoop_path, hdfs_path, 'dir')
-    lc.insert_tuple_hdfs(loc_path, hdfs_path, hdfs_chk)
-    os.mkdir(loc_path)  # creates an empty directory of hdfs outputs locally, triggers on_created()
-
-    # todo: decide if locally there is a link to the file or the whole file
-    # the same is propagated to b2drop
-    for rp in hdfs.ls(hdfs_path):
-        hdfs_chk = hdfs_file_checksum(hadoop_path, rp, 'file')
-        f = remove_prefix(hdfs_path, rp)
-        lp = customize_path(loc_path, f)
-        file_size = hdfs_file_size(hadoop_path, rp)
-        mrbox_file = MRBoxFile(rp, lp, local_file_size_limit, file_size)
-        lc.insert_tuple_hdfs(lp, rp, hdfs_chk, mrbox_file.type)
-
-        # get file from hdfs (need to chose if whole file or link)
-        if mrbox_file.type == 'file':
-            hdfs.get(rp, lp)  # triggers on_created()
-        elif mrbox_file.type == 'link':
-            print("Creating link to hdfs locally!")
 
 
 def hdfs_file_size(hadoop_path, hdfs_filepath):  # todo: how to handle dirs
@@ -65,6 +14,13 @@ def hdfs_file_size(hadoop_path, hdfs_filepath):  # todo: how to handle dirs
 
 
 def hdfs_file_checksum(hadoop_path, hdfs_filepath, ftype):
+    """
+    Computes the checksum of a file on hdfs
+    :param hadoop_path: where hadoop is installed locally
+    :param hdfs_filepath: the path of the file on hdfs
+    :param ftype: the type of the local copy of the file ('dir', 'file', 'link')
+    :return:
+    """
     if ftype == 'dir':
         return None
     cmd_hdfs_chk = customize_path(hadoop_path, 'bin/hdfs') + \

@@ -6,8 +6,10 @@ import sys
 from watchdog.observers import Observer
 from hdfs3 import HDFileSystem
 from core.local_catalogue import LocalCatalogue
+from core.hadoop_interface import HadoopInterface
 from utils.path_util import customize_path
 from core.file_monitor import Event
+from core.mrbox_object import MRBoxObj
 
 # TODO: create properties obj for hardcoded parameters
 # one thread to observe and more serialized to do the changes
@@ -29,30 +31,30 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(config_filepath)
 
+    # local folder properties
     local_folder = customize_path(config['User']['localPath'], 'mrbox')
     local_file_size_limit_MB = config['User']['localFileSizeMB']
     remote_folder = customize_path(config['User']['hdfsPath'], 'mrbox')
     if not os.path.exists(local_folder):
         os.mkdir(local_folder)
+    local = MRBoxObj(local_folder, local_file_size_limit_MB, remote_folder)
 
-    # connect to hdfs
-    hdfs = HDFileSystem(host=config['User']['hdfsHost'], port=config['User'].getint('hdfsPort'))
-    hdfs.mkdir(remote_folder)
+    # connect to hdfs and create hadoop interface, todo: check how to create list of multiple hadoops
+    hdfs_con = HDFileSystem(host=config['User']['hdfsHost'], port=config['User'].getint('hdfsPort'))
+    hadoop_path = config['User']['hadoopPath']
+    hdfs_con.mkdir(remote_folder)
+    hadoop = HadoopInterface(hdfs_con, hadoop_path)
 
     # create sqlite db
     full_db_path = os.path.join(local_folder, config['User']['dbFile'])
     lc = LocalCatalogue(full_db_path)
-
-    hadoop_path = config['User']['hadoopPath']
-
-    # list with tuples of (local_path, remote_path) of files that are not synced between local + hdfs dir
 
     # todo: run sync thread for initial consistency with local folder
 
     # create thread to monitor /mrbox directory and log events generated
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-    event_handler = Event(hdfs, lc, hadoop_path, local_folder, remote_folder, local_file_size_limit_MB)
+    event_handler = Event(local, hadoop, lc)
     observer = Observer()
     observer.schedule(event_handler, local_folder, recursive=True)
     observer.start()

@@ -85,12 +85,13 @@ class LocalCatalogue:
             if conn:
                 conn.close()
 
-    def insert_tuple_local(self, loc, rem, loc_chk):
+    def insert_tuple_local(self, loc, rem, loc_chk, type_loc):
         """
         When a file is created locally
         :param loc: local path
         :param rem: remote path
         :param loc_chk: checksum of file copy locally
+        :param type_loc: the type of the file locally ('dir', 'file' or 'link')
         :return:
         """
         dic = {self.LOC: asstr(loc),
@@ -98,15 +99,17 @@ class LocalCatalogue:
                self.TIME_LOC: asstr('datetime("now")', qmark=''),
                self.TIME_HDFS: asstr(None),
                self.CHK_LOC: asstr(loc_chk),
-               self.CHK_HDFS: asstr(None)}
+               self.CHK_HDFS: asstr(None),
+               self.TYPE_LOC: asstr(type_loc)}
         self.insert_tuple(dic)
 
-    def insert_tuple_hdfs(self, loc, rem, hdfs_chk):
+    def insert_tuple_hdfs(self, loc, rem, hdfs_chk, type_loc):
         """
         When a file is created on hdfs and will be copied locally
         :param loc: local path
         :param rem: remote path
         :param hdfs_chk: checksum of file copy on hdfs
+        :param type_loc: the type of the file locally ('dir', 'file' or 'link')
         :return:
         """
         dic = {self.LOC: asstr(loc),
@@ -114,7 +117,8 @@ class LocalCatalogue:
                self.TIME_LOC: asstr(None),
                self.TIME_HDFS: asstr('datetime("now")', qmark=''),
                self.CHK_LOC: asstr(None),
-               self.CHK_HDFS: asstr(hdfs_chk)}
+               self.CHK_HDFS: asstr(hdfs_chk),
+               self.TYPE_LOC: asstr(type_loc)}
         self.insert_tuple(dic)
 
     def insert_tuple(self, dic):
