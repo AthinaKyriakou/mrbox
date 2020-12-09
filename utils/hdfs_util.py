@@ -12,7 +12,6 @@ def hdfs_file_size(hadoop_path, hdfs_filepath):  # todo: how to handle dirs
     cmd_hdfs_file_size = customize_path(hadoop_path, 'bin/hdfs') + " dfs -ls " + hdfs_filepath
     res = subprocess.run(cmd_hdfs_file_size, shell=True, check=True, capture_output=True, text=True)
     res = res.stdout
-    print("HDFS file size res: " + res)
     file_size = res.split()[4]
     print("HDFS file size in bytes: " + file_size)
     return int(file_size)

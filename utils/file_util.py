@@ -19,8 +19,11 @@ def crc32c_file_checksum(filepath, ftype):
 
 def bytes_to_mb(file_size_bytes):
     res = int(file_size_bytes*1024*1024)
-    print(res)
     return res
+
+
+def to_link(filename):
+    return filename + '.link'
 
 
 if __name__ == '__main__':  # for tests

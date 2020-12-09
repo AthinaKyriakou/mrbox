@@ -15,7 +15,7 @@ class Event(FileSystemEventHandler):
         self.hadoop = hadoop
         self.lc = lc
 
-    # todo: test + with links
+    # todo: issue MR job with input a link
     def issue_mr_job(self, filepath):
         """
         Called when a .yaml file is created.
@@ -66,7 +66,7 @@ class Event(FileSystemEventHandler):
     def on_modified(self, event):  # todo: do not allow the links to be modified
         # When a file is modified locally
         print("on_modified")
-
+    """
         if event.is_directory:
             return
         self.lc.update_tuple_local(event.src_path, crc32c_file_checksum(event.src_path, 'file'))
@@ -79,39 +79,45 @@ class Event(FileSystemEventHandler):
                                       hdfs_file_checksum(self.hadoop.hadoopPath, remote_file_path, 'file'))
         except:  # todo: replace with specific exception once found, ADD SYNC
             print("HDFS operation failed!")
-
         # compare_local_hdfs_copy(self.lc, event.src_path)
+        """
 
-    # todo: test + with links
     def on_created(self, event):
         """ Creates dir / file on HDFS & adds mapping with mapping between local + hdfs path in the local db
         If created file is .yaml issues a MR job"""
         print("on_created")
 
-        filename = remove_prefix(self.local.localPath, event.src_path)
-        remote_file_path = customize_path(self.local.remotePath, filename)
-
-        obj = MRBoxObj(event.src_path, self.local.localFileLimit, remote_file_path)
-        loc_chk = crc32c_file_checksum(obj.localPath, obj.localType)
-
-        if self.lc.check_local_path_exists(obj.localPath):
+        if self.lc.check_local_path_exists(event.src_path):
+            print("file/dir already exists on hdfs - mapped on db")
+            remote_file_path = self.lc.get_remote_file_path(event.src_path)
+            obj = MRBoxObj(event.src_path, self.local.localFileLimit, remote_file_path)  # do we want remote file size?
+            # obj.file_info()
+            # update needed to insert the loc_chk in existent db record
+            # in case of link: loc_chk != hdfs_chk
+            loc_chk = crc32c_file_checksum(obj.localPath, obj.localType)
             self.lc.update_tuple_local(obj.localPath, loc_chk)
         else:
+            print("file/dir needs to be created on hdfs - not mapped on db")
+            filename = remove_prefix(self.local.localPath, event.src_path)
+            remote_file_path = customize_path(self.local.remotePath, filename)
+            obj = MRBoxObj(event.src_path, self.local.localFileLimit, remote_file_path)
+            # obj.file_info()
+            loc_chk = crc32c_file_checksum(obj.localPath, obj.localType)
             self.lc.insert_tuple_local(obj.localPath, obj.remotePath, loc_chk, obj.localType)
 
         if not self.hadoop.exists(remote_file_path) and obj.is_dir():
             print("creating dir on hdfs")
             self.hadoop.mkdir(remote_file_path)
+            hdfs_chk = hdfs_file_checksum(self.hadoop.hadoopPath, obj.remotePath, obj.localType)
+            self.lc.update_tuple_hdfs(obj.localPath, hdfs_chk)
 
         if not self.hadoop.exists(remote_file_path) and obj.is_file():
             print("creating file on hdfs")
             self.hadoop.put(obj.localPath, obj.remotePath)
+            hdfs_chk = hdfs_file_checksum(self.hadoop.hadoopPath, obj.remotePath, obj.localType)
+            self.lc.update_tuple_hdfs(obj.localPath, hdfs_chk)
 
         # if it is a link, it already exists
-
-        hdfs_chk = hdfs_file_checksum(self.hadoop.hadoopPath, remote_file_path, obj.localType)
-        # todo: make the update only if computed hdfs checksum is dif from the one in db
-        self.lc.update_tuple_hdfs(obj.localPath, hdfs_chk)
 
         # compare_local_hdfs_copy(self.lc, event.src_path)
 

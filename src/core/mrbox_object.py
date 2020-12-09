@@ -1,5 +1,6 @@
 # class representing a file that is created or will be created locally
 from os import path
+from utils.file_util import to_link
 
 
 class MRBoxObj:
@@ -11,17 +12,19 @@ class MRBoxObj:
         self.existsLoc = path.exists(local_path)
         self.remoteType = remote_file_type
 
-        print("Exists loc: " + str(self.existsLoc) + ", remote file type: " + str(self.remoteType))
-
-        if (self.existsLoc and path.splitext(local_path)[1] == '.link') or \
-                (not self.existsLoc and self.remoteFileSize > self.localFileLimit):
+        if self.existsLoc and path.splitext(local_path)[1] == '.link':
             self.localType = 'link'
+        elif not self.existsLoc and self.remoteFileSize > self.localFileLimit:
+            self.localType = 'link'
+            self.localPath = to_link(self.localPath)
+            self.remoteType = 'file'  # todo: SOS if locally is link remotely can only be file
         elif self.existsLoc and path.isdir(local_path):
             self.localType = 'dir'
         elif self.existsLoc and path.isfile(local_path):
             self.localType = 'file'
         else:
             self.localType = self.remoteType
+        print("Exists loc: " + str(self.existsLoc) + ", remote file type: " + str(self.remoteType))
 
     def is_dir(self):
         return self.localType == 'dir'
