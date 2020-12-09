@@ -195,6 +195,23 @@ class LocalCatalogue:
             print("Local path " + local_path + " does not exist in the db")
             return None
 
+    def get_loc_type_by_remote_path(self, rem_path):
+        return self.get_val_by_rem_path(self.TYPE_LOC, rem_path)
+
+    def get_val_by_rem_path(self, col, rem_path):  # todo: check error handling
+        conn = self.create_connection()
+        c = conn.cursor()
+        cmd = "SELECT %s FROM %s WHERE %s=%s" % (col, self.TABLE_NAME, self.HDFS, asstr(rem_path))
+        c.execute(cmd)
+        ret = c.fetchall()  # returns a list of tuples
+        conn.close()
+        try:
+            result = ret[0][0]
+            return result
+        except IndexError:
+            print("Remote path " + rem_path + " does not exist in the db")
+            return None
+
     # todo: how will I handle the already deleted file str locally if transaction fails?
     #  inconsistency because file str does not exist locally, exist in hdfs + db
     def delete_by_local_path(self, list_of_local_paths):   # todo: check error handling

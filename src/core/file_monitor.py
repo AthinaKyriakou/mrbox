@@ -5,7 +5,7 @@ import subprocess
 from watchdog.events import FileSystemEventHandler
 from utils.path_util import customize_path, remove_prefix
 from utils.hdfs_util import hdfs_file_checksum, compare_local_hdfs_copy
-from utils.file_util import crc32c_file_checksum
+from utils.file_util import crc32c_file_checksum, rm_link_extension, to_link
 from core.mrbox_object import MRBoxObj
 
 
@@ -143,29 +143,41 @@ class Event(FileSystemEventHandler):
 
     # todo: in case of link, need to change the content of the file
     def on_moved(self, event):
-        """ In case of a non-empty dir, the db records of its files and subdirectories are also modified
-        the dir file structure does not exist locally anymore
-        need to find it through calls to HDFS to update all related db records (local + remote path) """
-        print("on_moved")
+        """ for non-empty dir: the db records of its files and subdirectories are also modified
+        the dir file structure does not exist locally anymore so need to find it through calls to HDFS to update all
+        related db records (local + remote path)
+        for link: the corresponding remote file should be moved + the path in the link file should be changed
+        """
+        print("on_moved")  # todo: fix, remote file of link changes
         try:
-            remote_src_path = self.lc.get_remote_file_path(event.src_path)
-            tmp = remove_prefix(self.localFolder, event.dest_path)
-            remote_dest_path = customize_path(self.remoteFolder, tmp)
-            if remote_src_path is not None:
-                if event.is_directory:
-                    remote_src_paths = self.hadoop.find_remote_paths(remote_src_path)
+            rem_src_path = self.lc.get_remote_file_path(event.src_path)
+            tmp = customize_path(self.local.remotePath, remove_prefix(self.local.localPath, event.dest_path))
+            rem_dest_path = rm_link_extension(tmp)
+            existing_main_obj = MRBoxObj(event.dest_path, self.local.localFileLimit, rem_src_path)
+            if rem_src_path is not None:
+
+                if existing_main_obj.is_dir():
+                    # get all the remote paths of the files in the dir
+                    remote_src_paths = self.hadoop.find_remote_paths(rem_src_path)
                     local_remote_tuples = []
                     for rp in remote_src_paths:
-                        if rp == remote_src_path:
-                            local_remote_tuples.append((rp, event.dest_path, remote_dest_path))
+                        if rp == rem_src_path:
+                            local_remote_tuples.append((rp, event.dest_path, rem_dest_path))
                         else:
-                            file_hierarchy = remove_prefix(remote_src_path, rp)
-                            new_local_path = customize_path(event.dest_path, file_hierarchy)
-                            new_remote_path = customize_path(remote_dest_path, file_hierarchy)
+                            file_hierarchy = remove_prefix(rem_src_path, rp)
+                            new_remote_path = customize_path(rem_dest_path, file_hierarchy)
+                            loc_type = self.lc.get_loc_type_by_remote_path(rp)
+                            new_local_path = to_link(customize_path(event.dest_path, file_hierarchy), loc_type)
                             local_remote_tuples.append((rp, new_local_path, new_remote_path))
+                            # modify links' content
+                            existing_obj = MRBoxObj(new_local_path, self.local.localFileLimit, rp)
+                            existing_obj.replace_loc_content(new_remote_path)
                     self.lc.update_by_remote_path(local_remote_tuples)
+
                 else:
-                    self.lc.update_by_remote_path([(remote_src_path, event.dest_path, remote_dest_path)])
-                self.hdfs.mv(remote_src_path, remote_dest_path)
+                    existing_main_obj.replace_loc_content(rem_dest_path)
+                    self.lc.update_by_remote_path([(rem_src_path, event.dest_path, rem_dest_path)])
+
+                self.hadoop.mv(rem_src_path, rem_dest_path)
         except FileNotFoundError:
             print("Move already handled!")

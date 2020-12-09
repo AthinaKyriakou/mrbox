@@ -1,6 +1,7 @@
 import crc32c
+import os
 
-# todo: check if i can merge with mrbox_file
+# todo: change str to globals taken from mrbox_obj
 
 
 def crc32c_file_checksum(filepath, ftype):
@@ -22,8 +23,18 @@ def bytes_to_mb(file_size_bytes):
     return res
 
 
-def to_link(filename):
-    return filename + '.link'
+def to_link(filename, loc_type):
+    if loc_type == 'link':
+        return filename + '.link'
+    else:
+        return filename
+
+
+def rm_link_extension(path):
+    if os.path.splitext(path)[1] == '.link':
+        return os.path.splitext(path)[0]
+    else:
+        return path
 
 
 if __name__ == '__main__':  # for tests
