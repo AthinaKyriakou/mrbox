@@ -1,7 +1,7 @@
 import subprocess
 import os
+import stat
 from core.mrbox_object import MRBoxObj
-from utils.file_util import to_link
 from utils.path_util import customize_path, remove_prefix
 from utils.hdfs_util import hdfs_file_checksum, hdfs_file_size
 
@@ -42,6 +42,7 @@ class HadoopInterface:
         if mrboxf.localType == 'link':
             with open(mrboxf.localPath, 'w+') as fp:
                 fp.write(mrboxf.remotePath)  # todo: add correct link to be opened in browser
+            os.chmod(mrboxf.localPath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
         else:
             self.hdfsCon.get(mrboxf.remotePath, mrboxf.localPath)
 

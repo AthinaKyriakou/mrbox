@@ -62,25 +62,28 @@ class Event(FileSystemEventHandler):
     def on_any_event(self, event):
         print(event.event_type, event.src_path)
 
-    # todo: test + with links
-    def on_modified(self, event):  # todo: do not allow the links to be modified
-        # When a file is modified locally
+    def on_modified(self, event):
         print("on_modified")
-    """
-        if event.is_directory:
+
+        # no action if dir or link modification
+        obj = MRBoxObj(event.src_path, self.local.localFileLimit, self.lc.get_remote_file_path(event.src_path))
+        if obj.is_dir() or obj.is_link():
             return
-        self.lc.update_tuple_local(event.src_path, crc32c_file_checksum(event.src_path, 'file'))
-        remote_file_path = self.lc.get_remote_file_path(event.src_path)
+
+        # if file, update the local checksum
+        loc_chk = crc32c_file_checksum(obj.localPath, obj.localType)
+        self.lc.update_tuple_local(obj.localPath, loc_chk)
+
+        # update the copy on HDFS + the hdfs checksum
         try:
-            # (self, local_path, local_file_size_limit, remote_path, remote_file_size=0, remote_file_type=None)
-            self.hadoop.rm(remote_file_path)
-            self.hadoop.put(event.src_path, remote_file_path)
-            self.lc.update_tuple_hdfs(event.src_path,
-                                      hdfs_file_checksum(self.hadoop.hadoopPath, remote_file_path, 'file'))
-        except:  # todo: replace with specific exception once found, ADD SYNC
-            print("HDFS operation failed!")
+            self.hadoop.rm(obj.remotePath)
+            self.hadoop.put(obj.localPath, obj.remotePath)
+            hdfs_chk = hdfs_file_checksum(self.hadoop.hadoopPath, obj.remotePath, obj.localType)
+            self.lc.update_tuple_hdfs(obj.localPath, hdfs_chk)
+        except:
+            print("HDFS operation to update modified file failed!")
+
         # compare_local_hdfs_copy(self.lc, event.src_path)
-        """
 
     def on_created(self, event):
         """ Creates dir / file on HDFS & adds mapping with mapping between local + hdfs path in the local db
@@ -124,7 +127,6 @@ class Event(FileSystemEventHandler):
         if obj.is_file() and event.src_path.endswith('.yaml'):
             self.issue_mr_job(obj.localPath)
 
-    # todo: test + with links
     def on_deleted(self, event):
         """ Deletes dir / file from HDFS & removes the corresponding tuple from the local db
         In case of a non-empty dir, the db records of its files and subdirectories are also deleted
