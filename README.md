@@ -1,5 +1,5 @@
 # MRBox
-App for the management, processing and analysis of Big Data across local and remote platforms.
+An app for the management, processing and analysis of Big Data across local and remote platforms.
 
 ## Table of Contents
 1. [About the Project](https://github.com/AthinaKyriakou/mrbox#about-the-project)
@@ -58,10 +58,10 @@ used in the browser to view the output in HDFS
 
 ## Getting Started
 ### Prerequisites
-To use the app with a remote HDFS you need to:
-1. Have a remote Hadoop cluster that you can connect
-2. Have the same version of Hadoop installed in your local machine
-3. Update the src/core/mrbox.conf file with:
+##### To use the app with a remote HDFS you need:
+1. A remote Hadoop cluster that you can connect
+2. The same version of Hadoop installed in your local machine
+3. To update the `src/core/mrbox.conf` file with:
     * the inet of the remote Hadoop cluster (hdfsHost)
     * the port of HDFS (hdfsPort) in the remote cluster
     * the path of the Hadoop installation locally (hadoopPath)
@@ -69,31 +69,52 @@ To use the app with a remote HDFS you need to:
 
 Additionally, in the `mrbox.conf` you can change the path where the /mrbox folder will be created on HDFS (hdfsPath) and
 the size limit of the files that will be fetched locally from HDFS or other remote sources (localFileSizeMB).
+
+##### To synchronize your local /mrbox folder with a folder in B2DROP: 
+Follow the instructions [here](https://eudat.eu/services/userdoc/b2drop) to create a B2ACCESS account and mount B2DROP 
+using the WebDAV client. Prior to run the MRBox application, start the ownCloud Desktop client on your local machine.
     
 ### Installation
-To install Miniconda:
+###### To install Miniconda:
 ```bash
 make setup 
 ```
 
-To create a conda environment and install the project's requirements:
+###### To create a conda environment and install the project's requirements:
 ```bash
 make build 
 ```
 	
 ## Usage
-To run the application:
+###### To run the application:
 ```bash
 make run 
 ```
 
-_to add about file commands on files_
-_to add about scheduling a MR job_
+###### To schedule a Map Reduce job to be executed in the remote Hadoop cluster:
+1. Write a Mapper and a Reducer to your preferred programming language
+2. Create a `.yaml` file outside the local /mrbox folder that contains:
+    * mapper: absolute path to the Mapper's file in the local file system
+    * reducer: absolute path to the Reducer's file in the local file system
+    * input: path of the input data, relevant to the local /mrbox folder
+    * output: path where the outputs will be created, relevant to the local /mrbox folder
+    A template for the .yaml file can be found [here](/template.yaml).
+3. Move the `.yaml` inside the local /mrbox folder. 
 
-For help:
+The Map Reduce job will be issued to the remote cluster. After its completion, the outputs will be automatically created
+in the local output path specified. In case of large output files, a `.link` file containing their HDFS path will only 
+be created locally. You can use this link in your browser to view these large output files on HDFS.
+
+###### [_to add about file commands on files_]
+
+###### For help:
 ```bash
 make help 
 ```
+
+## Documentation
+Further documentation can be found [here](add_link).
+
 ## Contributing
 _In open source, we feel strongly that to really do something well, you have to get a lot of people involved. 
 ~ Linus Torvalds_

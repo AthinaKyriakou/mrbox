@@ -1,0 +1,9 @@
+# mapper + reducer file paths can be anywhere in the local file system
+mapper: "/home/athina/hadoop-3.2.1/mapper.py"
+reducer: "/home/athina/hadoop-3.2.1/reducer.py"
+
+# local input file path (relative to monitored mrbox folder)
+input: "test_input.txt"
+
+# local output file path (relative to monitored mrbox folder)
+output: "output_test"
