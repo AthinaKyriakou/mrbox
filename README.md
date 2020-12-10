@@ -14,14 +14,14 @@ App for the management, processing and analysis of Big Data across local and rem
 6. [Acknowledgements](https://github.com/AthinaKyriakou/mrbox#acknowledgements)
 
 ## About the Project
-The analysis and processing of Big Data often requires combining remote and local platforms, services and 
+The analysis and processing of big data often requires combining remote and local platforms, services and 
 cloud infrastructures. Due to the heterogeneity of these resources and the cost of transferring large-scale data, 
 performing data-intensive tasks across them is typically a non-automated and laborious undertaking or requires the 
 knowledge of specialized workflow tools by non-experts. 
 
-The purpose of this application is to provide a high-level and general picture of the local and remote infrastructures,
-as well as to enable the user to schedule, check locally, execute and remotely track operations on data residing at any 
-integrated platform. 
+The purpose of this application is to provide a **high-level and general picture** of the local and remote 
+infrastructures, as well as to enable the user to **schedule**, **check locally**, **execute** and 
+**remotely track operations** on data residing at any integrated platform. 
 
 The application is structured according to the **filesystem hierarchy of the operating system** so that the monitoring 
 will take place through seemingly local files and folders. The initial goal is to integrate **Hadoop** and **B2DROP** 
