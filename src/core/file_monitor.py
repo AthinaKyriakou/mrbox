@@ -15,7 +15,6 @@ class Event(FileSystemEventHandler):
         self.hadoop = hadoop
         self.lc = lc
 
-    # todo: issue MR job with input a link
     def issue_mr_job(self, filepath):
         """
         Called when a .yaml file is created.
@@ -30,7 +29,8 @@ class Event(FileSystemEventHandler):
             data = yaml.load(f, Loader=yaml.FullLoader)
             mapper_path = data.get('mapper')
             reducer_path = data.get('reducer')
-            input_path = os.path.join(self.local.localPath, data.get('input'))
+            input_path = customize_path(self.local.localPath, data.get('input'))
+            print("input_path: " + input_path)
             output_path = data.get('output')
 
         # check if the files exists locally
@@ -40,6 +40,7 @@ class Event(FileSystemEventHandler):
 
         # to issue MR job, the input file should be on hdfs --> need to get the remote path
         hdfs_input_path = self.lc.get_remote_file_path(customize_path(self.local.localPath, input_path))
+        print("hdfs_input_path: " + hdfs_input_path)
 
         # need to generate local + remote output paths
         local_output_path = customize_path(self.local.localPath, output_path)
@@ -141,14 +142,13 @@ class Event(FileSystemEventHandler):
             self.lc.delete_by_local_path([event.src_path])
         self.hadoop.rm(remote_path)
 
-    # todo: in case of link, need to change the content of the file
     def on_moved(self, event):
         """ for non-empty dir: the db records of its files and subdirectories are also modified
         the dir file structure does not exist locally anymore so need to find it through calls to HDFS to update all
         related db records (local + remote path)
         for link: the corresponding remote file should be moved + the path in the link file should be changed
         """
-        print("on_moved")  # todo: fix, remote file of link changes
+        print("on_moved")
         try:
             rem_src_path = self.lc.get_remote_file_path(event.src_path)
             tmp = customize_path(self.local.remotePath, remove_prefix(self.local.localPath, event.dest_path))
