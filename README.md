@@ -1,4 +1,4 @@
-# MRBox
+# MRBox :gift:
 An app for the management, processing and analysis of Big Data across local and remote platforms.
 
 ## Table of Contents
