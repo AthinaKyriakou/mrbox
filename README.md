@@ -58,22 +58,38 @@ used in the browser to view the output in HDFS
 
 ## Getting Started
 ### Prerequisites
+To use the app with a remote HDFS you need to:
+1. Have a remote Hadoop cluster that you can connect
+2. Have the same version of Hadoop installed in your local machine
+3. Update the src/core/mrbox.conf file with:
+    * the inet of the remote Hadoop cluster (hdfsHost)
+    * the port of HDFS (hdfsPort) in the remote cluster
+    * the path of the Hadoop installation locally (hadoopPath)
+    * the local path to the /mrbox folder (localPath)
 
+Additionally, in the `mrbox.conf` you can change the path where the /mrbox folder will be created on HDFS (hdfsPath) and
+the size limit of the files that will be fetched locally from HDFS or other remote sources (localFileSizeMB).
+    
 ### Installation
-Miniconda installation:
+To install Miniconda:
 ```bash
-make setup
+make setup 
 ```
-Creation of a conda environment and installation the project's requirements:
+
+To create a conda environment and install the project's requirements:
 ```bash
 make build 
 ```
 	
 ## Usage
-Run the application:
+To run the application:
 ```bash
 make run 
 ```
+
+_to add about file commands on files_
+_to add about scheduling a MR job_
+
 For help:
 ```bash
 make help 
@@ -95,7 +111,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Acknowledgements
 This project would not have been initiated and developed without the support of Mr. Iraklis-Angelos Klampanos and the 
-Software & Knowledge Engineering Lab (SKEL) at NCSR-“Demokritos”.
+Software & Knowledge Engineering Lab (SKEL) at NCSR “Demokritos”.
 
 
 
