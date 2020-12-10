@@ -28,7 +28,7 @@ will take place through seemingly local files and folders. The initial goal is t
 services and to be able to schedule **MapReduce jobs** with possibilities to expand to other platforms and types of 
 data operations in the future.
 
-![High Level Design](/images/high_level_design.png)
+![High Level Design](/images/high_level_design.jpg)
 
 ### Features
 
