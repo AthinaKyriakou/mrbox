@@ -9,9 +9,10 @@ An app for the management, processing and analysis of Big Data across local and 
     * [Prerequisites](https://github.com/AthinaKyriakou/mrbox#prerequisites)
     * [Installation](https://github.com/AthinaKyriakou/mrbox#installation)
 3. [Usage](https://github.com/AthinaKyriakou/mrbox#usage)
-4. [Contributing](https://github.com/AthinaKyriakou/mrbox#contributing)
-5. [License](https://github.com/AthinaKyriakou/mrbox#license)
-6. [Acknowledgements](https://github.com/AthinaKyriakou/mrbox#acknowledgements)
+4. [Documentation](https://github.com/AthinaKyriakou/mrbox#documentation)
+5. [Contributing](https://github.com/AthinaKyriakou/mrbox#contributing)
+6. [License](https://github.com/AthinaKyriakou/mrbox#license)
+7. [Acknowledgements](https://github.com/AthinaKyriakou/mrbox#acknowledgements)
 
 ## About the Project
 The analysis and processing of big data often requires combining remote and local platforms, services and 
