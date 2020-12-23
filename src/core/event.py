@@ -6,7 +6,7 @@ from watchdog.events import FileSystemEventHandler
 from utils.path_util import customize_path, remove_prefix
 from utils.hdfs_util import hdfs_file_checksum, compare_local_hdfs_copy
 from utils.file_util import crc32c_file_checksum, rm_link_extension, to_link
-from core.mrbox_object import MRBoxObj
+from core.mrbox_object import MRBoxObject
 
 
 class Event(FileSystemEventHandler):
@@ -53,8 +53,8 @@ class Event(FileSystemEventHandler):
                  + " -input " + hdfs_input_path + " -output " + hdfs_output_path
 
         try:
-            output_dir = MRBoxObj(local_output_path, self.local.localFileLimit, hdfs_output_path,
-                                  remote_file_type='dir')
+            output_dir = MRBoxObject(local_output_path, self.local.localFileLimit, hdfs_output_path,
+                                     remote_file_type='dir')
             self.hadoop.create_locally_synced_dir(cmd_mr, self.lc, output_dir)
         except subprocess.CalledProcessError as e:
             print("Map-Reduce job failed!")
@@ -67,7 +67,7 @@ class Event(FileSystemEventHandler):
         print("on_modified")
 
         # no action if dir or link modification
-        obj = MRBoxObj(event.src_path, self.local.localFileLimit, self.lc.get_remote_file_path(event.src_path))
+        obj = MRBoxObject(event.src_path, self.local.localFileLimit, self.lc.get_remote_file_path(event.src_path))
         if obj.is_dir() or obj.is_link():
             return
 
@@ -94,7 +94,7 @@ class Event(FileSystemEventHandler):
         if self.lc.check_local_path_exists(event.src_path):
             print("file/dir already exists on hdfs - mapped on db")
             remote_file_path = self.lc.get_remote_file_path(event.src_path)
-            obj = MRBoxObj(event.src_path, self.local.localFileLimit, remote_file_path)  # do we want remote file size?
+            obj = MRBoxObject(event.src_path, self.local.localFileLimit, remote_file_path)  # do we want remote file size?
             # obj.file_info()
             # update needed to insert the loc_chk in existent db record
             # in case of link: loc_chk != hdfs_chk
@@ -104,7 +104,7 @@ class Event(FileSystemEventHandler):
             print("file/dir needs to be created on hdfs - not mapped on db")
             filename = remove_prefix(self.local.localPath, event.src_path)
             remote_file_path = customize_path(self.local.remotePath, filename)
-            obj = MRBoxObj(event.src_path, self.local.localFileLimit, remote_file_path)
+            obj = MRBoxObject(event.src_path, self.local.localFileLimit, remote_file_path)
             # obj.file_info()
             loc_chk = crc32c_file_checksum(obj.localPath, obj.localType)
             self.lc.insert_tuple_local(obj.localPath, obj.remotePath, loc_chk, obj.localType)
@@ -153,7 +153,7 @@ class Event(FileSystemEventHandler):
             rem_src_path = self.lc.get_remote_file_path(event.src_path)
             tmp = customize_path(self.local.remotePath, remove_prefix(self.local.localPath, event.dest_path))
             rem_dest_path = rm_link_extension(tmp)
-            existing_main_obj = MRBoxObj(event.dest_path, self.local.localFileLimit, rem_src_path)
+            existing_main_obj = MRBoxObject(event.dest_path, self.local.localFileLimit, rem_src_path)
             if rem_src_path is not None:
 
                 if existing_main_obj.is_dir():
@@ -170,7 +170,7 @@ class Event(FileSystemEventHandler):
                             new_local_path = to_link(customize_path(event.dest_path, file_hierarchy), loc_type)
                             local_remote_tuples.append((rp, new_local_path, new_remote_path))
                             # modify links' content
-                            existing_obj = MRBoxObj(new_local_path, self.local.localFileLimit, rp)
+                            existing_obj = MRBoxObject(new_local_path, self.local.localFileLimit, rp)
                             existing_obj.replace_loc_content(new_remote_path)
                     self.lc.update_by_remote_path(local_remote_tuples)
 

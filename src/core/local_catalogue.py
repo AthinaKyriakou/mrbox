@@ -6,7 +6,7 @@ from utils.db_util import insert_substr, update_substr, asstr
 # todo: might need to specify which HDFS in case multiple
 
 
-class LocalCatalogue:
+class LocalCatalog:
     TABLE_NAME = 'mrbox_files'
 
     # Column names: #####################################

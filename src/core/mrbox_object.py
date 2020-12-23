@@ -4,8 +4,8 @@ import stat
 from utils.file_util import to_link
 
 
-class MRBoxObj:
-    def __init__(self, local_path, local_file_size_limit, remote_path=None, remote_file_size=0, remote_file_type=None):
+class MRBoxObject:
+    def __init__(self, local_path, local_file_size_limit=0, remote_path=None, remote_file_size=0, remote_file_type=None):
         self.remotePath = remote_path
         self.localPath = local_path
         self.localFileLimit = local_file_size_limit

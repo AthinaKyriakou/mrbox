@@ -1,6 +1,6 @@
 import subprocess
 import os
-from core.mrbox_object import MRBoxObj
+from core.mrbox_object import MRBoxObject
 from utils.path_util import customize_path, remove_prefix
 from utils.hdfs_util import hdfs_file_checksum, hdfs_file_size
 
@@ -13,6 +13,14 @@ class HadoopInterface:
         """
         self.hdfsCon = hdfs_con
         self.hadoopPath = hadoop_path
+
+    def head(self, hdfs_path):
+        cmd = customize_path(self.hadoopPath, 'bin/hdfs') + " dfs -head " + hdfs_path
+        subprocess.run(cmd, shell=True, check=True)
+
+    def tail(self, hdfs_path):
+        cmd = customize_path(self.hadoopPath, 'bin/hdfs') + " dfs -tail " + hdfs_path
+        subprocess.run(cmd, shell=True, check=True)
 
     def mv(self, hdfs_src_path, hdfs_dest_path):
         self.hdfsCon.mv(hdfs_src_path, hdfs_dest_path)
@@ -82,7 +90,7 @@ class HadoopInterface:
             file_size = hdfs_file_size(self.hadoopPath, rp)
             f = remove_prefix(mrbox_dir.remotePath, rp)
             lp = customize_path(mrbox_dir.localPath, f)
-            mrbox_file = MRBoxObj(lp, mrbox_dir.localFileLimit, rp, file_size, 'file')
+            mrbox_file = MRBoxObject(lp, mrbox_dir.localFileLimit, rp, file_size, 'file')
 
             # todo: insert in batch
             lc.insert_tuple_hdfs(mrbox_file.localPath, mrbox_file.remotePath, hdfs_chk, mrbox_file.localType)
