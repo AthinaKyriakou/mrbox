@@ -1,5 +1,5 @@
 # MRBox :gift:
-A user-friendly for the management, processing and analysis of Big Data across local and remote platforms.
+A user-friendly application for the management, processing and analysis of Big Data across local and remote platforms.
 
 ## Table of Contents
 1. [About the Project](https://github.com/AthinaKyriakou/mrbox#about-the-project)
