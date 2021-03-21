@@ -129,13 +129,10 @@ Any contribution is highly valued and appreciated. To contribute:
 5. Open a pull request
 
 ## License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the Apache, Version 2.0 License. See `LICENSE` for more information.
 
 ## Acknowledgements
-This project would not have been initiated and developed without the support of Mr. Iraklis-Angelos Klampanos and the 
-Software & Knowledge Engineering Lab (SKEL) at NCSR “Demokritos”.
-
-
+This project was developed with the support of Mr. Iraklis-Angelos Klampanos at the National Centre for Scientific Research “Demokritos” during the intership program of the National Technical University of Athens.
 
 
 
