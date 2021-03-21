@@ -48,7 +48,7 @@ class Event(FileSystemEventHandler):
 
         # issue MR job
         cmd_mr = customize_path(self.hadoop.hadoopPath, 'bin/hadoop') + " jar " \
-                 + customize_path(self.hadoop.hadoopPath, 'share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar') \
+                 + customize_path(self.hadoop.hadoopPath, 'share/hadoop/tools/lib/hadoop-streaming-3.2.0.jar') \
                  + " -files " + mapper_path + "," + reducer_path + " -mapper 'mapper.py'" + " -reducer 'reducer.py'" \
                  + " -input " + hdfs_input_path + " -output " + hdfs_output_path
 

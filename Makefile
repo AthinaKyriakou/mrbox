@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
-PROJECT_NAME=test10
+PROJECT_NAME=mrbox
 MAIN_EXEC=./core/mrbox.py
-PATH_FOLDER=/home/athina/Desktop/praktiki/mrbox
+PATH_FOLDER=/home/athina/Desktop/mrbox
 
 help:
 	@echo "Help"
