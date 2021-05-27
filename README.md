@@ -113,9 +113,6 @@ be created locally. You can use this link in your browser to view these large ou
 make help 
 ```
 
-## Documentation
-Further documentation can be found [here](add_link).
-
 ## Contributing
 _In open source, we feel strongly that to really do something well, you have to get a lot of people involved. 
 ~ Linus Torvalds_
