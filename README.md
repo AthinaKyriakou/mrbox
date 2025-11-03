@@ -140,6 +140,7 @@ If you use **MRbox**, please cite:
   year      = {2021},
   url       = {https://api.semanticscholar.org/CorpusID:233260861}
 }
+```
 
 ## Acknowledgements
 This project was developed with the support of Mr. Iraklis-Angelos Klampanos at the National Centre for Scientific Research “Demokritos” during the intership program of the National Technical University of Athens.
