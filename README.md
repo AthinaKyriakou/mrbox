@@ -129,12 +129,16 @@ Any contribution is highly valued and appreciated. To contribute:
 Distributed under the Apache, Version 2.0 License. See `LICENSE` for more information.
 
 ## Citation
+
+If you use **MRbox**, please cite:
+
+```bibtex
 @inproceedings{Kyriakou2021MRboxSW,
-  title={MRbox: Simplifying Working with Remote Heterogeneous Analytics and Storage Services via Localised Views},
-  author={Athina Kyriakou and Iraklis Angelos Klampanos},
-  booktitle={EDBT/ICDT Workshops},
-  year={2021},
-  url={https://api.semanticscholar.org/CorpusID:233260861}
+  title     = {MRbox: Simplifying Working with Remote Heterogeneous Analytics and Storage Services via Localised Views},
+  author    = {Athina Kyriakou and Iraklis Angelos Klampanos},
+  booktitle = {EDBT/ICDT Workshops},
+  year      = {2021},
+  url       = {https://api.semanticscholar.org/CorpusID:233260861}
 }
 
 ## Acknowledgements
