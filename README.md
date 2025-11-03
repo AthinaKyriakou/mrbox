@@ -128,6 +128,15 @@ Any contribution is highly valued and appreciated. To contribute:
 ## License
 Distributed under the Apache, Version 2.0 License. See `LICENSE` for more information.
 
+## Citation
+@inproceedings{Kyriakou2021MRboxSW,
+  title={MRbox: Simplifying Working with Remote Heterogeneous Analytics and Storage Services via Localised Views},
+  author={Athina Kyriakou and Iraklis Angelos Klampanos},
+  booktitle={EDBT/ICDT Workshops},
+  year={2021},
+  url={https://api.semanticscholar.org/CorpusID:233260861}
+}
+
 ## Acknowledgements
 This project was developed with the support of Mr. Iraklis-Angelos Klampanos at the National Centre for Scientific Research “Demokritos” during the intership program of the National Technical University of Athens.
 
